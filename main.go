@@ -21,11 +21,11 @@ type Movie struct {
 }
 
 func to_int(s string) int {
-	i, err := strconv.Atoi(s)
+	num, err := strconv.Atoi(s)
 	if err != nil {
 		panic(err)
 	}
-	return i
+	return num
 }
 
 func getDB() *gorm.DB {
@@ -91,10 +91,7 @@ func updateMovie(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	// Connect to the database
-	db, err := gorm.Open(sqlite.Open("./temp.db"), &gorm.Config{})
-	if err != nil {
-		panic(err)
-	}
+	db := getDB()
 	// Auto migrate the database to match the struct definitions
 	db.AutoMigrate(&Movie{})
 	var movies []Movie
