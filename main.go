@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"strconv"
@@ -23,6 +24,7 @@ type Movie struct {
 func to_int(s string) int {
 	num, err := strconv.Atoi(s)
 	if err != nil {
+		slog.Error("Failed to convert string to int")
 		panic(err)
 	}
 	return num
@@ -31,12 +33,15 @@ func to_int(s string) int {
 func getDB() *gorm.DB {
 	db, err := gorm.Open(sqlite.Open("./temp.db"), &gorm.Config{})
 	if err != nil {
+		slog.Error("Failed to connect to database")
 		panic(err)
 	}
+	slog.Info("Connected to database")
 	return db
 }
 
 func getMovies(w http.ResponseWriter, r *http.Request) {
+	slog.Info("Fetching movies")
 	w.Header().Set("Content-Type", "application/json")
 	var movies []Movie
 	db := getDB()
@@ -46,25 +51,28 @@ func getMovies(w http.ResponseWriter, r *http.Request) {
 
 func deleteMovie(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	var movie Movie
 	params := mux.Vars(r)
 	movie_id := to_int(params["id"])
+	slog.Info("Deleting movie", slog.Int("id", movie_id))
 	db := getDB()
+	var movie Movie
 	db.Delete(&movie, movie_id)
 	json.NewEncoder(w).Encode(movie)
 }
 
 func getMovie(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	var movie Movie
 	params := mux.Vars(r)
 	movie_id := to_int(params["id"])
+	slog.Info("Fetching movie", slog.Int("id", movie_id))
 	db := getDB()
+	var movie Movie
 	db.First(&movie, movie_id)
 	json.NewEncoder(w).Encode(movie)
 }
 
 func createMovie(w http.ResponseWriter, r *http.Request) {
+	slog.Info("Creating movie")
 	w.Header().Set("Content-Type", "application/json")
 	var movie Movie
 	_ = json.NewDecoder(r.Body).Decode(&movie)
@@ -74,6 +82,7 @@ func createMovie(w http.ResponseWriter, r *http.Request) {
 }
 
 func updateMovie(w http.ResponseWriter, r *http.Request) {
+	slog.Info("Updating movie")
 	w.Header().Set("Content-Type", "application/json")
 	params := mux.Vars(r)
 	var movie Movie
@@ -90,6 +99,10 @@ func updateMovie(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	slog.SetDefault(logger)
+	slog.Info("Starting server")
+
 	// Connect to the database
 	db := getDB()
 	// Auto migrate the database to match the struct definitions
