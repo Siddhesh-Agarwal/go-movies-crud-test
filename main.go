@@ -99,7 +99,14 @@ func updateMovie(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	// log writer
+	file, err := os.OpenFile(".log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		panic(err)
+	}
+
+	// Initialize logger
+	logger := slog.New(slog.NewTextHandler(file, nil))
 	slog.SetDefault(logger)
 	slog.Info("Starting server")
 
