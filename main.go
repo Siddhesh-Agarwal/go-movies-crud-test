@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	"github.com/gorilla/mux"
+	"github.com/patrickmn/go-cache"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -40,12 +41,23 @@ func getDB() *gorm.DB {
 	return db
 }
 
+func getCache() *cache.Cache {
+	cache := cache.New(cache.DefaultExpiration, cache.NoExpiration)
+	return cache
+}
+
 func getMovies(w http.ResponseWriter, r *http.Request) {
 	slog.Info("Fetching movies")
 	w.Header().Set("Content-Type", "application/json")
+	c := getCache()
 	var movies []Movie
-	db := getDB()
-	db.Find(&movies)
+	if cacheRes, cacheIsPresent := c.Get("movies"); cacheIsPresent {
+		movies = cacheRes.([]Movie)
+	} else {
+		db := getDB()
+		db.Find(&movies)
+		c.Set("movies", movies, cache.DefaultExpiration)
+	}
 	json.NewEncoder(w).Encode(movies)
 }
 
@@ -63,11 +75,18 @@ func deleteMovie(w http.ResponseWriter, r *http.Request) {
 func getMovie(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	params := mux.Vars(r)
-	movie_id := to_int(params["id"])
+	movied_id_str := params["id"]
+	movie_id := to_int(movied_id_str)
 	slog.Info("Fetching movie", slog.Int("id", movie_id))
-	db := getDB()
 	var movie Movie
-	db.First(&movie, movie_id)
+	c := getCache()
+	if cacheRes, cacheIsPresent := c.Get("movies" + movied_id_str); cacheIsPresent {
+		movie = cacheRes.(Movie)
+	} else {
+		db := getDB()
+		db.First(&movie, movie_id)
+		c.Set("movies"+movied_id_str, movie, cache.DefaultExpiration)
+	}
 	json.NewEncoder(w).Encode(movie)
 }
 
